@@ -75,10 +75,16 @@ impl<const N: usize> Display<N> {
                 .and_then(|win| win.document())
                 .and_then(|doc| doc.body())
                 .and_then(|body| {
-                    body.append_child(&web_sys::Element::from(window.canvas()))
+                    match body.query_selector("#emulator") {
+                        Ok(Some(el)) => Some(el),
+                        _ => Some(body.into())
+                    }
+                })
+                .and_then(|container| {
+                    container.append_child(&web_sys::Element::from(window.canvas()))
                         .ok()
                 })
-                .expect("couldn't append canvas to document body");
+                .expect("couldn't append canvas to `#emulator` element or body");
 
             // Listen for resize event on browser client. Adjust winit window dimensions
             // on event trigger
