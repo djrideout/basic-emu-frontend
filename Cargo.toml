@@ -1,5 +1,5 @@
 [package]
-name = "basic-emu-frontend"
+name = "basic_emu_frontend"
 version = "0.1.0"
 edition = "2021"
 
