@@ -2,7 +2,7 @@ mod audio;
 mod display;
 
 use clap::ValueEnum;
-use std::sync::{Arc, Mutex};
+use std::{future::Future, sync::{Arc, Mutex}};
 pub use winit::event::VirtualKeyCode;
 
 #[derive(PartialEq, Clone, Copy, Default, ValueEnum, Debug)]
@@ -80,4 +80,15 @@ impl<const N: usize> Frontend<N> {
         self.audio_player.run();
         self.display.run().await
     }
+}
+
+pub fn block_on<F: Future<Output = ()> + 'static>(fut: F) {
+    #[cfg(target_arch = "wasm32")]
+    {
+        std::panic::set_hook(Box::new(console_error_panic_hook::hook));
+        console_log::init_with_level(log::Level::Trace).expect("error initializing logger");
+        wasm_bindgen_futures::spawn_local(fut);
+    }
+    #[cfg(not(target_arch = "wasm32"))]
+    pollster::block_on(fut);
 }
