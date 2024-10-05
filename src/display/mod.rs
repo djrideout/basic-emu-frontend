@@ -71,13 +71,17 @@ impl<const N: usize> Display<N> {
             let client_window = web_sys::window().unwrap();
 
             // Attach winit canvas to body element
+            let mut appended_to_body = false;
             web_sys::window()
                 .and_then(|win| win.document())
                 .and_then(|doc| doc.body())
                 .and_then(|body| {
                     match body.query_selector("#emulator") {
                         Ok(Some(el)) => Some(el),
-                        _ => Some(body.into())
+                        _ => {
+                            appended_to_body = true;
+                            Some(body.into())
+                        }
                     }
                 })
                 .and_then(|container| {
@@ -86,16 +90,26 @@ impl<const N: usize> Display<N> {
                 })
                 .expect("couldn't append canvas to `#emulator` element or body");
 
-            // Listen for resize event on browser client. Adjust winit window dimensions
-            // on event trigger
-            let closure = wasm_bindgen::closure::Closure::wrap(Box::new(move |_e: web_sys::Event| {
-                let size = get_window_size();
-                window.set_inner_size(size)
-            }) as Box<dyn FnMut(_)>);
-            client_window
-                .add_event_listener_with_callback("resize", closure.as_ref().unchecked_ref())
-                .unwrap();
-            closure.forget();
+            if appended_to_body {
+                // If appended to the body, listen for resize event on browser client. Adjust winit window dimensions
+                // on event trigger
+                let closure = wasm_bindgen::closure::Closure::wrap(Box::new(move |_e: web_sys::Event| {
+                    let size = get_window_size();
+                    window.set_inner_size(size)
+                }) as Box<dyn FnMut(_)>);
+                client_window
+                    .add_event_listener_with_callback("resize", closure.as_ref().unchecked_ref())
+                    .unwrap();
+                closure.forget();
+            } else {
+                // If appended to the `#emulator` container element, just set the width/height to the
+                // width/height of the core. The page styles will be expected to override the inline
+                // width/height styles of the canvas.
+                window.set_inner_size(LogicalSize::new(
+                    self.width as f64,
+                    self.height as f64
+                ));
+            }
         }
 
         let mut pixels = {
