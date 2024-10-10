@@ -29,13 +29,13 @@ pub trait Core: Send + 'static {
     fn get_sample(&mut self) -> f32;
 }
 
-pub struct Frontend<const N: usize> {
-    display: display::Display<N>,
+pub struct Frontend {
+    display: display::Display,
     audio_player: audio::AudioPlayer
 }
 
-impl<const N: usize> Frontend<N> {
-    pub fn new(core: impl Core, keymap: [VirtualKeyCode; N], sync_mode: SyncModes) -> Frontend<N> {
+impl Frontend {
+    pub fn new(core: impl Core, keymap: Vec<VirtualKeyCode>, sync_mode: SyncModes) -> Frontend {
         // Create Arcs to share the core between the audio and rendering threads
         let arc_parent = Arc::new(Mutex::new(core));
         let arc_child = arc_parent.clone();
