@@ -1,4 +1,5 @@
 use crate::{Core, SyncModes};
+use crate::keymap::Keymap;
 use error_iter::ErrorIter as _;
 use log::error;
 use std::sync::{Arc, Mutex};
@@ -14,12 +15,12 @@ pub struct Display {
     core: Arc<Mutex<dyn Core>>,
     width: usize,
     height: usize,
-    keymap: Vec<VirtualKeyCode>,
+    keymap: Keymap,
     sync_mode: SyncModes
 }
 
 impl Display {
-    pub fn new(core: Arc<Mutex<impl Core>>, keymap: Vec<VirtualKeyCode>, sync_mode: SyncModes) -> Display {
+    pub fn new(core: Arc<Mutex<impl Core>>, keymap: Keymap, sync_mode: SyncModes) -> Display {
         let core_temp = core.lock().unwrap();
         let width = core_temp.get_width();
         let height = core_temp.get_height();
@@ -119,7 +120,7 @@ impl Display {
         };
 
         let core = self.core.clone();
-        let keymap = self.keymap.clone();
+        let keymap = self.keymap.get_keys();
         let sync_mode = self.sync_mode;
 
         event_loop.run(move |event, _, control_flow| {

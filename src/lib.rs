@@ -1,6 +1,10 @@
 mod audio;
 mod display;
+pub mod keymap;
 
+use crate::audio::AudioPlayer;
+use crate::display::Display;
+use crate::keymap::Keymap;
 use clap::ValueEnum;
 use std::{future::Future, sync::{Arc, Mutex}};
 pub use winit::event::VirtualKeyCode;
@@ -35,7 +39,7 @@ pub struct Frontend {
 }
 
 impl Frontend {
-    pub fn new(core: impl Core, keymap: Vec<VirtualKeyCode>, sync_mode: SyncModes) -> Frontend {
+    pub fn new(core: impl Core, keymap: Keymap, sync_mode: SyncModes) -> Frontend {
         // Create Arcs to share the core between the audio and rendering threads
         let arc_parent = Arc::new(Mutex::new(core));
         let arc_child = arc_parent.clone();
@@ -60,7 +64,7 @@ impl Frontend {
                 }
             }
         };
-        let audio_player = audio::AudioPlayer::new(get_sample);
+        let audio_player = AudioPlayer::new(get_sample);
 
         let arc_temp = arc_parent.clone();
         let mut core_temp = arc_temp.lock().unwrap();
@@ -68,7 +72,7 @@ impl Frontend {
         core_temp.set_num_output_channels(audio_player.get_num_channels());
         drop(core_temp);
 
-        let display = display::Display::new(arc_parent, keymap, sync_mode);
+        let display = Display::new(arc_parent, keymap, sync_mode);
 
         Frontend {
             display,
