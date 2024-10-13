@@ -2,6 +2,7 @@ mod audio;
 mod display;
 pub mod keymap;
 
+use wasm_bindgen::prelude::*;
 use crate::audio::AudioPlayer;
 use crate::display::Display;
 use crate::keymap::Keymap;
@@ -9,6 +10,7 @@ use clap::ValueEnum;
 use std::{future::Future, sync::{Arc, Mutex}};
 pub use winit::event::VirtualKeyCode;
 
+#[wasm_bindgen]
 #[derive(PartialEq, Clone, Copy, Default, ValueEnum, Debug)]
 pub enum SyncModes {
     // One rendering frame is one execution frame. Audio is disabled.
@@ -33,13 +35,14 @@ pub trait Core: Send + 'static {
     fn get_sample(&mut self) -> f32;
 }
 
+#[wasm_bindgen]
 pub struct Frontend {
     display: display::Display,
     audio_player: audio::AudioPlayer
 }
 
 impl Frontend {
-    pub fn new(core: impl Core, keymap: Keymap, sync_mode: SyncModes) -> Frontend {
+    pub fn new<T: Core>(core: T, keymap: Keymap, sync_mode: SyncModes) -> Frontend {
         // Create Arcs to share the core between the audio and rendering threads
         let arc_parent = Arc::new(Mutex::new(core));
         let arc_child = arc_parent.clone();
@@ -79,7 +82,11 @@ impl Frontend {
             audio_player
         }
     }
+}
 
+#[wasm_bindgen]
+impl Frontend {
+    #[wasm_bindgen]
     pub async fn start(&self) {
         self.audio_player.run();
         self.display.run().await
