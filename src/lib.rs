@@ -1,6 +1,7 @@
 mod audio;
 mod display;
 pub mod keymap;
+pub mod rom;
 
 use wasm_bindgen::prelude::*;
 use crate::audio::AudioPlayer;
