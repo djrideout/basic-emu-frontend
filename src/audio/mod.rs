@@ -1,4 +1,4 @@
-use cpal::{traits::{DeviceTrait, HostTrait, StreamTrait}, StreamConfig};
+use cpal::{traits::{DeviceTrait, HostTrait, StreamTrait}, BufferSize, StreamConfig, SupportedBufferSize};
 
 pub struct AudioPlayer {
     output_stream: cpal::Stream,
@@ -16,7 +16,15 @@ impl AudioPlayer {
             Ok(config) => config,
             Err(_err) => panic!("Default output config error: {}", _err)
         };
-        let config = StreamConfig::from(supported_config);
+        let min_buffer_size = match supported_config.buffer_size() {
+            SupportedBufferSize::Range { min, .. } => BufferSize::Fixed(*min.max(&512)),
+            _ => BufferSize::Default
+        };
+        let config = StreamConfig {
+            channels: supported_config.channels(),
+            sample_rate: supported_config.sample_rate(),
+            buffer_size: min_buffer_size
+        };
         let output_data_fn = move |data: &mut [f32], _: &cpal::OutputCallbackInfo| {
             for (_, sample) in data.iter_mut().enumerate() {
                 *sample = get_sample();
