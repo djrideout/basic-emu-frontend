@@ -22,7 +22,7 @@ impl Keymap {
 #[wasm_bindgen]
 impl Keymap {
     #[wasm_bindgen(constructor)]
-    // The JsValues should be the numeric values for the VirtualKeyCodes
+    // The JsValues should be the key values as strings, not numeric values
     // https://docs.rs/winit-gtk/latest/winit/event/enum.VirtualKeyCode.html
     pub fn from_js(array: Box<[JsValue]>) -> Keymap {
         let mut keys: Vec<VirtualKeyCode> = Vec::new();
