@@ -1,5 +1,6 @@
 use crate::{Core, SyncModes};
 use crate::keymap::Keymap;
+use wasm_bindgen::prelude::*;
 use error_iter::ErrorIter as _;
 use log::error;
 use std::sync::{Arc, Mutex};
@@ -10,6 +11,15 @@ use winit::event::{Event, VirtualKeyCode};
 use winit::event_loop::{ControlFlow, EventLoop};
 use winit::window::WindowBuilder;
 use winit_input_helper::WinitInputHelper;
+
+#[wasm_bindgen]
+extern "C" {
+    #[wasm_bindgen(js_namespace = wasm_imports)]
+    fn on_key_pressed(i: usize);
+
+    #[wasm_bindgen(js_namespace = wasm_imports)]
+    fn on_key_released(i: usize);
+}
 
 pub struct Display {
     core: Arc<Mutex<dyn Core>>,
@@ -156,12 +166,21 @@ impl Display {
                 let mut core = core.lock().unwrap();
                 // Handle key presses
                 for i in 0 .. keymap.len() {
+                    let _prev_key_pressed = core.get_key_pressed(i);
                     if input.key_released(keymap[i]) {
                         core.release_key(i);
                     } else if input.key_pressed(keymap[i]) || input.key_held(keymap[i]) {
                         core.press_key(i);
                     } else {
                         core.release_key(i);
+                    }
+                    #[cfg(target_arch = "wasm32")]
+                    if core.get_key_pressed(i) && !_prev_key_pressed {
+                        on_key_pressed(i);
+                    }
+                    #[cfg(target_arch = "wasm32")]
+                    if !core.get_key_pressed(i) && _prev_key_pressed {
+                        on_key_released(i);
                     }
                 }
                 if sync_mode == SyncModes::VSync {

@@ -30,6 +30,7 @@ pub trait Core: Send + 'static {
     fn get_width(&self) -> usize;
     fn get_height(&self) -> usize;
     fn get_sample_queue_length(&self) -> usize;
+    fn get_key_pressed(&self, key_index: usize) -> bool;
     fn draw(&self, frame: &mut [u8]);
     fn set_seconds_per_output_sample(&mut self, value: f32);
     fn set_num_output_channels(&mut self, value: usize);
