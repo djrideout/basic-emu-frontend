@@ -6,11 +6,13 @@ use log::error;
 use std::sync::{Arc, Mutex};
 use pixels::{Pixels, SurfaceTexture};
 use std::rc::Rc;
+use std::cell::RefCell;
 use winit::dpi::LogicalSize;
 use winit::event::{Event, VirtualKeyCode};
 use winit::event_loop::{ControlFlow, EventLoop};
 use winit::window::WindowBuilder;
 use winit_input_helper::WinitInputHelper;
+use gloo_utils::format::JsValueSerdeExt;
 
 #[wasm_bindgen]
 extern "C" {
@@ -19,6 +21,35 @@ extern "C" {
 
     #[wasm_bindgen(js_namespace = wasm_imports)]
     fn on_key_released(i: usize);
+}
+
+thread_local! {
+    pub static KEY_OVERRIDES: RefCell<Vec<VirtualKeyCode>> = RefCell::new(vec![]);
+}
+
+// Programmatically press key_code.
+// This overrides the normal input handling in winit's event loop.
+#[wasm_bindgen]
+pub fn press_key(key_code: JsValue) {
+    if let Ok(virtual_key) = key_code.into_serde::<VirtualKeyCode>() {
+        KEY_OVERRIDES.with(|vec| {
+            vec.borrow_mut().push(virtual_key);
+        });
+    }
+}
+
+// Programmatically release key_code.
+// This overrides the normal input handling in winit's event loop.
+#[wasm_bindgen]
+pub fn release_key(key_code: JsValue) {
+    if let Ok(virtual_key) = key_code.into_serde::<VirtualKeyCode>() {
+        KEY_OVERRIDES.with(|vec| {
+            let mut vec = vec.borrow_mut();
+            if let Some(index) = vec.iter().position(|value| *value == virtual_key) {
+                vec.swap_remove(index);
+            }
+        });
+    }
 }
 
 pub struct Display {
@@ -163,30 +194,31 @@ impl Display {
                     }
                 }
 
-                let mut core = core.lock().unwrap();
-                // Handle key presses
-                for i in 0 .. keymap.len() {
-                    let _prev_key_pressed = core.get_key_pressed(i);
-                    if input.key_released(keymap[i]) {
-                        core.release_key(i);
-                    } else if input.key_pressed(keymap[i]) || input.key_held(keymap[i]) {
-                        core.press_key(i);
-                    } else {
-                        core.release_key(i);
+                KEY_OVERRIDES.with(|vec| {
+                    let overrides = vec.borrow();
+                    let mut core = core.lock().unwrap();
+                    // Handle key presses
+                    for i in 0 .. keymap.len() {
+                        let _prev_key_pressed = core.get_key_pressed(i);
+                        let key_override = overrides.iter().position(|value| *value == keymap[i]);
+                        if key_override.is_some() || input.key_pressed(keymap[i]) || input.key_held(keymap[i]) {
+                            core.press_key(i);
+                        } else {
+                            core.release_key(i);
+                        }
+                        #[cfg(target_arch = "wasm32")]
+                        if core.get_key_pressed(i) && !_prev_key_pressed {
+                            on_key_pressed(i);
+                        }
+                        #[cfg(target_arch = "wasm32")]
+                        if !core.get_key_pressed(i) && _prev_key_pressed {
+                            on_key_released(i);
+                        }
                     }
-                    #[cfg(target_arch = "wasm32")]
-                    if core.get_key_pressed(i) && !_prev_key_pressed {
-                        on_key_pressed(i);
+                    if sync_mode == SyncModes::VSync {
+                        core.run_frame();
                     }
-                    #[cfg(target_arch = "wasm32")]
-                    if !core.get_key_pressed(i) && _prev_key_pressed {
-                        on_key_released(i);
-                    }
-                }
-                if sync_mode == SyncModes::VSync {
-                    core.run_frame();
-                }
-                drop(core);
+                });
 
                 window.request_redraw();
             }
