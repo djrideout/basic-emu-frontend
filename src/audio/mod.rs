@@ -16,8 +16,18 @@ impl AudioPlayer {
             Ok(config) => config,
             Err(_err) => panic!("Default output config error: {}", _err)
         };
+        #[cfg(target_arch = "wasm32")]
+        let fallback_min = match web_sys::window().unwrap().navigator().user_agent() {
+            Ok(user_agent) => match user_agent.to_lowercase().contains("firefox") {
+                true => 1024, // 512 is too small of a buffer size for firefox, it results in choppy audio
+                false => 512
+            },
+            Err(_) => 512
+        };
+        #[cfg(not(target_arch = "wasm32"))]
+        let fallback_min = 512;
         let min_buffer_size = match supported_config.buffer_size() {
-            SupportedBufferSize::Range { min, .. } => BufferSize::Fixed(*min.max(&512)),
+            SupportedBufferSize::Range { min, .. } => BufferSize::Fixed(*min.max(&fallback_min)),
             _ => BufferSize::Default
         };
         let config = StreamConfig {
