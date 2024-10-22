@@ -50,7 +50,7 @@ impl AudioPlayer {
         }
     }
 
-    pub fn run(&self) {
+    pub fn start(&self) {
         match self.output_stream.play() {
             Ok(_) => {},
             Err(err) => panic!("Stream play error: {}", err)

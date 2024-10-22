@@ -48,14 +48,14 @@ pub struct Frontend {
 }
 
 impl Frontend {
-    pub fn new<T: Core>(core: T, keymap: Keymap, sync_mode: SyncModes) -> Frontend {
+    pub fn new(core: Arc<Mutex<impl Core>>, keymap: Keymap, sync_mode: SyncModes) -> Frontend {
         // Create Arcs to share the core between the audio and rendering threads
-        let arc_parent = Arc::new(Mutex::new(core));
-        let arc_child = arc_parent.clone();
+        let arc_display = core.clone();
+        let arc_audio = core.clone();
 
         let get_sample = move || {
             // Lock the mutex while generating samples in the audio thread
-            let mut core = arc_child.lock().unwrap();
+            let mut core = arc_audio.lock().unwrap();
             match sync_mode {
                 SyncModes::AudioCallback => {
                     // Run instructions until a new sample is ready and return that
@@ -75,13 +75,13 @@ impl Frontend {
         };
         let audio_player = AudioPlayer::new(get_sample);
 
-        let arc_temp = arc_parent.clone();
-        let mut core_temp = arc_temp.lock().unwrap();
+        let arc_frontend = arc_display.clone();
+        let mut core_temp = arc_frontend.lock().unwrap();
         core_temp.set_seconds_per_output_sample(1.0 / audio_player.get_sample_rate() as f32);
         core_temp.set_num_output_channels(audio_player.get_num_channels());
         drop(core_temp);
 
-        let display = Display::new(arc_parent, keymap, sync_mode);
+        let display = Display::new(arc_display, keymap, sync_mode);
 
         Frontend {
             display,
@@ -94,8 +94,8 @@ impl Frontend {
 impl Frontend {
     #[wasm_bindgen]
     pub async fn start(&self) {
-        self.audio_player.run();
-        self.display.run().await
+        self.audio_player.start();
+        self.display.start().await
     }
 }
 

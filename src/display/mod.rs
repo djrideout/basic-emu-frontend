@@ -75,7 +75,7 @@ impl Display {
         }
     }
 
-    pub async fn run(&self) {
+    pub async fn start(&self) {
         // Set up graphics buffer and window
         let event_loop = EventLoop::new();
         let mut input = WinitInputHelper::new();
