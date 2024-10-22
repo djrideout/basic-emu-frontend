@@ -41,7 +41,6 @@ pub trait Core: Send + 'static {
     fn get_sample(&mut self) -> f32;
 }
 
-#[wasm_bindgen]
 pub struct Frontend {
     display: display::Display,
     audio_player: audio::AudioPlayer
@@ -88,11 +87,7 @@ impl Frontend {
             audio_player
         }
     }
-}
 
-#[wasm_bindgen]
-impl Frontend {
-    #[wasm_bindgen]
     pub async fn start(&self) {
         self.audio_player.start();
         self.display.start().await
