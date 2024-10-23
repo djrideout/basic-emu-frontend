@@ -43,19 +43,22 @@ pub trait Core: Send + 'static {
 
 pub struct Frontend {
     display: display::Display,
-    audio_player: audio::AudioPlayer
+    audio_player: audio::AudioPlayer,
+    sync_mode: Arc<Mutex<SyncModes>>
 }
 
 impl Frontend {
     pub fn new(core: Arc<Mutex<impl Core>>, keymap: Keymap, sync_mode: SyncModes) -> Frontend {
         // Create Arcs to share the core between the audio and rendering threads
-        let arc_display = core.clone();
-        let arc_audio = core.clone();
+        let core_arc_display = core.clone();
+        let core_arc_audio = core.clone();
+        let sync_arc = Arc::new(Mutex::new(sync_mode));
+        let sync_arc_audio = sync_arc.clone();
 
         let get_sample = move || {
             // Lock the mutex while generating samples in the audio thread
-            let mut core = arc_audio.lock().unwrap();
-            match sync_mode {
+            let mut core = core_arc_audio.lock().unwrap();
+            match *sync_arc_audio.lock().unwrap() {
                 SyncModes::AudioCallback => {
                     // Run instructions until a new sample is ready and return that
                     while core.get_sample_queue_length() == 0 {
@@ -74,23 +77,28 @@ impl Frontend {
         };
         let audio_player = AudioPlayer::new(get_sample);
 
-        let arc_frontend = arc_display.clone();
+        let arc_frontend = core_arc_display.clone();
         let mut core_temp = arc_frontend.lock().unwrap();
         core_temp.set_seconds_per_output_sample(1.0 / audio_player.get_sample_rate() as f32);
         core_temp.set_num_output_channels(audio_player.get_num_channels());
         drop(core_temp);
 
-        let display = Display::new(arc_display, keymap, sync_mode);
+        let display = Display::new(core_arc_display, keymap, sync_arc.clone());
 
         Frontend {
             display,
-            audio_player
+            audio_player,
+            sync_mode: sync_arc
         }
     }
 
     pub async fn start(&self) {
         self.audio_player.start();
         self.display.start().await
+    }
+
+    pub fn set_sync_mode(&self, sync_mode: SyncModes) {
+        *self.sync_mode.lock().unwrap() = sync_mode;
     }
 }
 

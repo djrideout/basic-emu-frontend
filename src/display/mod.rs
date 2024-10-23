@@ -57,11 +57,11 @@ pub struct Display {
     width: usize,
     height: usize,
     keymap: Keymap,
-    sync_mode: SyncModes
+    sync_mode: Arc<Mutex<SyncModes>>
 }
 
 impl Display {
-    pub fn new(core: Arc<Mutex<impl Core>>, keymap: Keymap, sync_mode: SyncModes) -> Display {
+    pub fn new(core: Arc<Mutex<impl Core>>, keymap: Keymap, sync_mode: Arc<Mutex<SyncModes>>) -> Display {
         let core_temp = core.lock().unwrap();
         let width = core_temp.get_width();
         let height = core_temp.get_height();
@@ -162,7 +162,7 @@ impl Display {
 
         let core = self.core.clone();
         let keymap = self.keymap.get_keys();
-        let sync_mode = self.sync_mode;
+        let sync_mode = self.sync_mode.clone();
 
         event_loop.run(move |event, _, control_flow| {
             // Draw the current frame
@@ -215,7 +215,7 @@ impl Display {
                             on_key_released(i);
                         }
                     }
-                    if sync_mode == SyncModes::VSync {
+                    if *sync_mode.lock().unwrap() == SyncModes::VSync {
                         core.run_frame();
                     }
                 });
